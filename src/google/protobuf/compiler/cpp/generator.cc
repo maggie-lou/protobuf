@@ -116,6 +116,7 @@ bool CppGenerator::GenerateImpl(const FileDescriptor* file,
 
   if (MaybeBootstrap(file_options, generator_context, file_options.bootstrap,
                      &basename)) {
+    generate_reserved_static_reflection_header();
     return true;
   }
 
@@ -158,6 +159,7 @@ bool CppGenerator::GenerateImpl(const FileDescriptor* file,
     }
   }
 
+  generate_reserved_static_reflection_header();
   {
     auto output = absl::WrapUnique(
         generator_context->Open(absl::StrCat(basename, ".pb.h")));
