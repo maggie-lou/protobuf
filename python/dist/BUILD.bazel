@@ -10,6 +10,7 @@ load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@protobuf_pip_deps//:requirements.bzl", "requirement")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("@rules_python//python:packaging.bzl", "py_wheel")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@system_python//:version.bzl", "SYSTEM_PYTHON_VERSION")
@@ -325,6 +326,21 @@ sh_binary(
     visibility = ["//visibility:private"],
 )
 
+py_binary(
+    name = "normalize_sdist",
+    srcs = ["normalize_sdist.py"],
+    visibility = ["//visibility:private"],
+)
+
+py_test(
+    name = "normalize_sdist_test",
+    srcs = [
+        "normalize_sdist.py",
+        "normalize_sdist_test.py",
+    ],
+    imports = ["."],
+)
+
 genrule(
     name = "source_wheel",
     srcs = [":source_tarball"],
@@ -333,13 +349,18 @@ genrule(
         set -eux
         tar -xzvf $(location :source_tarball)
         $(location :setup_wrapper) sdist
-        mv protobuf/dist/*.tar.gz $@
+        # setuptools adds build-time timestamps to the gzip header and tar
+        # entries. Normalize the final sdist, including generated egg-info.
+        $(location :normalize_sdist) protobuf/dist/*.tar.gz $@
     """,
     target_compatible_with = select({
         "@system_python//:none": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
-    tools = [":setup_wrapper"],
+    tools = [
+        ":normalize_sdist",
+        ":setup_wrapper",
+    ],
 )
 
 py_wheel(
